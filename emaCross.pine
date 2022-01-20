@@ -1,0 +1,52 @@
+//@version=4
+study("4 EMA Crossover" , overlay=true)
+
+
+len1 = input(8, minval=1, title="MA1")
+len2 = input(13, minval=1, title="MA2")
+len3 = input(21, minval=1, title="MA3")
+len4 = input(55, minval=1, title="MA4")
+len5 = input(200, minval=1, title="MA5")
+
+ma1 = ema(close, len1)
+ma2 = ema(close, len2)
+ma3 = ema(close, len3)
+ma4 = ema(close, len4)
+ma5 = ema(close, len5)
+rocpos = roc(close, 150)
+
+plot(ma1, title="MA1", color=color.blue)
+plot(ma2, title="MA2", color=color.red)
+plot(ma3, title="MA3", color=color.green)
+plot(ma4, title="MA4", color=color.orange)
+plot(ma5, title="MA4", color=color.purple)
+
+prelong = bool(na)
+preshort = bool(na)
+longCond = bool(na)
+shortCond = bool(na)
+longCond := ma1 > ma4 and ma2 > ma4 and ma3 > ma4 and rocpos > 0
+shortCond :=  ma1 < ma4 and ma2 < ma4 and ma3 < ma4
+prelong := ma1 < ma2 and ma1 > ma4
+preshort := ma1 > ma3 and ma1 < ma4
+
+CondIni = 0
+CondIni := longCond ? 1 : shortCond ? -1 : CondIni[1]
+CondIniW = 0
+CondIniW := prelong ? 1 : longCond ? -1 : shortCond ? -1 : CondIniW[1]
+CondIniS = 0
+CondIniS := preshort ? 1 : longCond ? -1 : shortCond ? -1 : CondIniW[1]
+longCondition = longCond and CondIni[1] == -1
+shortCondition = shortCond and CondIni[1] == 1
+selllongcondition = prelong and CondIniW[1] == -1
+sellshortcondition = preshort and CondIniS[1] == -1
+
+plotshape(longCondition, title="Buy Signal", text="BL", textcolor=color.white, style=shape.labelup, size=size.tiny, location=location.belowbar, color=color.green, transp=0)
+plotshape(shortCondition, title="Short Signal", text="BS", textcolor=color.white, style=shape.labeldown, size=size.tiny, location=location.abovebar, color=color.blue, transp=0)
+plotshape(selllongcondition, title="Warn L Signal", text="SL", textcolor=color.white, style=shape.labeldown, size=size.tiny, location=location.abovebar, color=color.orange, transp=0)
+plotshape(sellshortcondition, title="Warn S Signal", text="SS", textcolor=color.white, style=shape.labeldown, size=size.tiny, location=location.abovebar, color=color.red, transp=0)
+
+alertcondition(longCondition, title='EMA Cross UP', message='EMA Buy Long')
+//alertcondition(shortCondition, title='EMA Cross DOWN', message='EMA Buy Short')
+alertcondition(selllongcondition, title='EMA Cross SL', message='EMA Warn Sell Long')
+//alertcondition(sellshortcondition, title='EMA Cross SS', message='EMA Warn Sell Short')
