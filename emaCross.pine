@@ -46,7 +46,7 @@ plotshape(shortCondition, title="Short Signal", text="BS", textcolor=color.white
 plotshape(selllongcondition, title="Warn L Signal", text="SL", textcolor=color.white, style=shape.labeldown, size=size.tiny, location=location.abovebar, color=color.orange, transp=0)
 plotshape(sellshortcondition, title="Warn S Signal", text="SS", textcolor=color.white, style=shape.labeldown, size=size.tiny, location=location.abovebar, color=color.red, transp=0)
 
-alertcondition(longCondition, title='EMA Cross UP', message='EMA Buy Long')
+alertcondition(longCondition, title='EMA Buy Long', message='EMA Buy Long')
 //alertcondition(shortCondition, title='EMA Cross DOWN', message='EMA Buy Short')
-alertcondition(selllongcondition, title='EMA Cross SL', message='EMA Warn Sell Long')
+alertcondition(selllongcondition, title='EMA Sell Long', message='EMA Sell Long')
 //alertcondition(sellshortcondition, title='EMA Cross SS', message='EMA Warn Sell Short')

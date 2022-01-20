@@ -944,9 +944,9 @@ if barstate.islast
 
 			//ALARM 
 			alarm=input(true, title="ALARM SETTING")
-			alertbl=input(defval=70, title="Overbought")
+			//alertbl=input(defval=70, title="Overbought")
 			if BLtrig_bool and alarm
 				alert("Buy" + " Long " +str.tostring(array.get(s_arr, i)) + " Price: " + str.tostring(array.get(cl_arr, i)), alert.freq_once_per_bar_close)
-				//alert("Buy" +"Long" +str.tostring(array.get(s_arr, i)) + "Price: " + str.tostring(array.get(cl_arr, i))+ "now", alert.freq_once_per_bar)
+
 				
 		
