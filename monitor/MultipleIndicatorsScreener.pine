@@ -83,15 +83,15 @@ s02 = input.symbol('BINANCE:ETHUSDT',  group = 'Symbols', inline = 's02')
 s03 = input.symbol('BINANCE:SOLUSDT', group = 'Symbols', inline = 's03')
 s04 = input.symbol('BINANCE:LUNAUSDT',  group = 'Symbols', inline = 's04')
 s05 = input.symbol('BINANCE:ATOMUSDT',  group = 'Symbols', inline = 's05')
-s06 = input.symbol('BINANCE:ADAUSDT',  group = 'Symbols', inline = 's06')
-s07 = input.symbol('BINANCE:STORJUSDT',   group = 'Symbols', inline = 's07')
+s06 = input.symbol('BINANCE:IOTXUSDT',  group = 'Symbols', inline = 's06')
+s07 = input.symbol('BINANCE:CVXUSDT',   group = 'Symbols', inline = 's07')
 s08 = input.symbol('BINANCE:FTMUSDT',  group = 'Symbols', inline = 's08')
 s09 = input.symbol('BINANCE:SANDUSDT',  group = 'Symbols', inline = 's09')
 s10 = input.symbol('BINANCE:ONEUSDT',  group = 'Symbols', inline = 's10')
-s11 = input.symbol('BINANCE:LINKUSDT',  group = 'Symbols', inline = 's11')
-s12 = input.symbol('BINANCE:LTCUSDT',  group = 'Symbols', inline = 's12')
+s11 = input.symbol('BINANCE:RUNEUSDT',  group = 'Symbols', inline = 's11')
+s12 = input.symbol('BINANCE:CRVUSDT',  group = 'Symbols', inline = 's12')
 s13 = input.symbol('BINANCE:YFIUSDT',  group = 'Symbols', inline = 's13')
-s14 = input.symbol('BINANCE:UTKUSDT',   group = 'Symbols', inline = 's14')
+s14 = input.symbol('BINANCE:AMPUSDT',   group = 'Symbols', inline = 's14')
 s15 = input.symbol('BINANCE:SUSHIUSDT',   group = 'Symbols', inline = 's15')
 s16 = input.symbol('BINANCE:DOGEUSDT',  group = 'Symbols', inline = 's16')
 s17 = input.symbol('BINANCE:ICPUSDT',  group = 'Symbols', inline = 's17')
@@ -100,24 +100,24 @@ s19 = input.symbol('BINANCE:WTCUSDT',  group = 'Symbols', inline = 's19')
 s20 = input.symbol('BINANCE:LINKUSDT',  group = 'Symbols', inline = 's20')
 s21 = input.symbol('BINANCE:IDEXUSDT',  group = 'Symbols', inline = 's21')
 s22 = input.symbol('BINANCE:ANTUSDT',  group = 'Symbols', inline = 's22')
-s23 = input.symbol('BINANCE:BCHUSDT',  group = 'Symbols', inline = 's23')
-s24 = input.symbol('BINANCE:IOTXUSDT',   group = 'Symbols', inline = 's24')
+s23 = input.symbol('BINANCE:NEARUSDT',  group = 'Symbols', inline = 's23')
+s24 = input.symbol('BINANCE:ADAUSDT',   group = 'Symbols', inline = 's24')
 s25 = input.symbol('BINANCE:IOSTUSDT', group = 'Symbols', inline = 's25')
-s26 = input.symbol('BINANCE:CHZUSDT',  group = 'Symbols', inline = 's26')
+s26 = input.symbol('BINANCE:FXSUSDT',  group = 'Symbols', inline = 's26')
 s27 = input.symbol('BINANCE:FTTUSDT', group = 'Symbols', inline = 's27')
 s28 = input.symbol('BINANCE:TRXUSDT',   group = 'Symbols', inline = 's28')
 s29 = input.symbol('BINANCE:HBARUSDT', group = 'Symbols', inline = 's29')
-s30 = input.symbol('BINANCE:ETCUSDT',   group = 'Symbols', inline = 's30')
-s31 = input.symbol('BINANCE:FILUSDT',  group = 'Symbols', inline = 's31')
-s32 = input.symbol('BINANCE:HOTUSDT',  group = 'Symbols', inline = 's32')
+s30 = input.symbol('BINANCE:SCRTUSDT',   group = 'Symbols', inline = 's30')
+s31 = input.symbol('BINANCE:GRTUSDT',  group = 'Symbols', inline = 's31')
+s32 = input.symbol('BINANCE:UTKUSDT',  group = 'Symbols', inline = 's32')
 s33 = input.symbol('BINANCE:SXPUSDT',  group = 'Symbols', inline = 's33')
 s34 = input.symbol('BINANCE:SPELLUSDT',  group = 'Symbols', inline = 's34')
-s35 = input.symbol('BINANCE:RVNUSDT',  group = 'Symbols', inline = 's35')
-s36 = input.symbol('BINANCE:DUSKUSDT', group = 'Symbols', inline = 's36')
-s37 = input.symbol('BINANCE:XRPUSDT',   group = 'Symbols', inline = 's37')
-s38 = input.symbol('BINANCE:XLMUSDT',   group = 'Symbols', inline = 's38')
-s39 = input.symbol('BINANCE:BALUSDT',  group = 'Symbols', inline = 's39')
-s40 = input.symbol('BINANCE:GRTUSDT',  group = 'Symbols', inline = 's40')
+s35 = input.symbol('BINANCE:DUSKUSDT',  group = 'Symbols', inline = 's35')
+s36 = input.symbol('SHIBUSDT', group = 'Symbols', inline = 's36')
+s37 = input.symbol('LOOKSUSDT',   group = 'Symbols', inline = 's37')
+s38 = input.symbol('METISUSDT',   group = 'Symbols', inline = 's38')
+s39 = input.symbol('JEWELUSDT',  group = 'Symbols', inline = 's39')
+s40 = input.symbol('POKTUSDT',  group = 'Symbols', inline = 's40')
 
 //////////////////
 // CALCULATIONS //
@@ -887,11 +887,10 @@ var tbl = table.new(position.middle_right, 13, 41, frame_color=#151715, frame_wi
 
 if barstate.islast
 
-    table.cell(tbl, 0, 0, 'Symbol',     text_halign = text.align_center, bgcolor = color.gray, text_color = color.white, text_size = size.small)
+    table.cell(tbl, 0, 0, 'ITVL: '+str.tostring(timeframe.period),     text_halign = text.align_center, bgcolor = color.gray, text_color = color.white, text_size = size.small)
     table.cell(tbl, 1, 0, 'Price',      text_halign = text.align_center, bgcolor = color.gray, text_color = color.white, text_size = size.small)
     table.cell(tbl, 2, 0, 'RSI',        text_halign = text.align_center, bgcolor = color.gray, text_color = color.white, text_size = size.small)
     table.cell(tbl, 3, 0, 'TSI',        text_halign = text.align_center, bgcolor = color.gray, text_color = color.white, text_size = size.small)
-    //table.cell(tbl, 4, 0, 'ADX',        text_halign = text.align_center, bgcolor = color.gray, text_color = color.white, text_size = size.small)
     table.cell(tbl, 4, 0, 'ROC',        text_halign = text.align_center, bgcolor = color.gray, text_color = color.white, text_size = size.small)
     table.cell(tbl, 5, 0, 'EMA1',        text_halign = text.align_center, bgcolor = color.gray, text_color = color.white, text_size = size.small)
     table.cell(tbl, 6, 0, 'EMA2',        text_halign = text.align_center, bgcolor = color.gray, text_color = color.white, text_size = size.small)
@@ -920,7 +919,7 @@ if barstate.islast
             SLtrig_text = array.get(SLtrig_arr, i) == bool(true) ? "SLong"      : "Wait"
             SLtrig_col  = array.get(SLtrig_arr, i) == bool(true) ? color.orange : #aaaaaa
 
-            roc_col  = array.get(roc_arr, i) > 0 ? #93D712 : #D7E3BF
+            roc_col  = array.get(roc_arr, i) > 0 ? #93D712 : #A3A69F
 
             ma1_col  = array.get(ma1_arr, i) > array.get(ma2_arr, i) ? color.green : #DEE7CD
             ma2_col  = array.get(ma2_arr, i) > array.get(ma3_arr, i) ? color.green : #DEE7CD
