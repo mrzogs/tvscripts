@@ -1,6 +1,6 @@
 //@version=4
 // Moving Average 3.0 (3rd Generation) script may be freely distributed under the MIT license. Copyright (c) 2018-present, Alex Orekhov (everget)
-study("BB with MA buy indicator", overlay=true)
+study("BB with MA", overlay=true)
 
 length1 = input(title="1st Length", type=input.integer, minval=1, defval=120)
 length2 = input(title="2nd Length", type=input.integer, minval=1, defval=12)

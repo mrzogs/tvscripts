@@ -1,5 +1,6 @@
 //@version=5
-indicator('Multiple Indicators Screener', overlay=true)
+indicator('Multiple Indicators Screener', overlay=false)
+
 
 ////////////
 // INPUTS //
@@ -33,6 +34,12 @@ sup_factor  = input.float(3.0, "Supertrend Factor",     group = 'Indicators')
 
 // ROC
 roc_len = input.int(  150, title = "ROC Length",     group = "Indicators")
+
+// BB and MA
+length1 = input.int(title="1st Length", minval=1, defval=120)
+length2 = input.int(title="2nd Length", minval=1, defval=12)
+maInput = input(title="MA Type", defval="EMA") //, options=["EMA", "SMA", "VWMA", "WMA"])
+src = input(title="Source", defval=hl2)
 
 /////////////
 // SYMBOLS // 
@@ -125,6 +132,36 @@ s40 = input.symbol('POKTUSDT',  group = 'Symbols', inline = 's40')
 // Get only symbol
 only_symbol(s) => 
     array.get(str.split(s, ":"), 1)
+    // BB CROSS
+srchull       = input(hl2,   "Price Data")
+lengthhull    = input(24,    "Lookback")
+showcross = input(true,  "Show cross over/under")
+gain      = input(10000, "Gain")
+k         = input(true,  "Use Kahlman")    
+hma(_srchull, _lengthhull) =>
+    ta.ema((2 * ta.ema(_srchull, _lengthhull / 2)) - ta.ema(_srchull, _lengthhull), math.round(math.sqrt(_lengthhull)))
+
+hma3(_srchull, _lengthhull) =>
+    p = lengthhull/2
+    ta.ema(ta.ema(close,p/3)*3 - ta.ema(close,p/2) - ta.ema(close,p),p)
+
+kahlman(x, g) =>
+    kf = 0.0
+    dk = x - nz(kf[1], x)
+    smooth = nz(kf[1],x)+dk*math.sqrt((g/10000)*2)
+    velo = 0.0
+    velo := nz(velo[1],0) + ((g/10000)*dk)
+    kf := smooth+velo
+    
+a = k ? kahlman(hma(srchull, lengthhull), gain) : hma(srchull, lengthhull)
+b = k ? kahlman(hma3(srchull, lengthhull), gain) : hma3(srchull, lengthhull)
+c = b > a ? color.lime : color.red
+signal = b > a 
+//crossdn = bool(na)
+//crossup = bool(na)
+crossdn = a > b and a[1] < b[1]
+crossup = b > a and b[1] < a[1]
+
 
 // for TSI
 double_smooth(src, long, short) =>
@@ -200,55 +237,54 @@ screener_func() =>
 	SLtrig = prelong and CondIniW[1] == -1
 	
 
-	
+
 	// Write to Table
-    [math.round_to_mintick(close), rsi, tsi, roc, ma1, ma2, ma3, ma4, BLtrig, SLtrig, sup_dir]
+    [math.round_to_mintick(close), rsi, roc, ma1, ma2, ma3, ma4, BLtrig, SLtrig, signal, sup_dir]
    
 
 
-
+ 
 // Security call
-[cl01, rsi01, tsi01, roc01, ma101, ma201, ma301, ma401, BLtrig01, SLtrig01, sup01] = request.security(s01, timeframe.period, screener_func())
-[cl02, rsi02, tsi02, roc02, ma102, ma202, ma302, ma402, BLtrig02, SLtrig02, sup02] = request.security(s02, timeframe.period, screener_func())
-[cl03, rsi03, tsi03, roc03, ma103, ma203, ma303, ma403, BLtrig03, SLtrig03, sup03] = request.security(s03, timeframe.period, screener_func())
-[cl04, rsi04, tsi04, roc04, ma104, ma204, ma304, ma404, BLtrig04, SLtrig04, sup04] = request.security(s04, timeframe.period, screener_func())
-[cl05, rsi05, tsi05, roc05, ma105, ma205, ma305, ma405, BLtrig05, SLtrig05, sup05] = request.security(s05, timeframe.period, screener_func())
-[cl06, rsi06, tsi06, roc06, ma106, ma206, ma306, ma406, BLtrig06, SLtrig06, sup06] = request.security(s06, timeframe.period, screener_func())
-[cl07, rsi07, tsi07, roc07, ma107, ma207, ma307, ma407, BLtrig07, SLtrig07, sup07] = request.security(s07, timeframe.period, screener_func())
-[cl08, rsi08, tsi08, roc08, ma108, ma208, ma308, ma408, BLtrig08, SLtrig08, sup08] = request.security(s08, timeframe.period, screener_func())
-[cl09, rsi09, tsi09, roc09, ma109, ma209, ma309, ma409, BLtrig09, SLtrig09, sup09] = request.security(s09, timeframe.period, screener_func())
-[cl10, rsi10, tsi10, roc10, ma110, ma210, ma310, ma410, BLtrig10, SLtrig10, sup10] = request.security(s10, timeframe.period, screener_func())
-[cl11, rsi11, tsi11, roc11, ma111, ma211, ma311, ma411, BLtrig11, SLtrig11, sup11] = request.security(s11, timeframe.period, screener_func())
-[cl12, rsi12, tsi12, roc12, ma112, ma212, ma312, ma412, BLtrig12, SLtrig12, sup12] = request.security(s12, timeframe.period, screener_func())
-[cl13, rsi13, tsi13, roc13, ma113, ma213, ma313, ma413, BLtrig13, SLtrig13, sup13] = request.security(s13, timeframe.period, screener_func())
-[cl14, rsi14, tsi14, roc14, ma114, ma214, ma314, ma414, BLtrig14, SLtrig14, sup14] = request.security(s14, timeframe.period, screener_func())
-[cl15, rsi15, tsi15, roc15, ma115, ma215, ma315, ma415, BLtrig15, SLtrig15, sup15] = request.security(s15, timeframe.period, screener_func())
-[cl16, rsi16, tsi16, roc16, ma116, ma216, ma316, ma416, BLtrig16, SLtrig16, sup16] = request.security(s16, timeframe.period, screener_func())
-[cl17, rsi17, tsi17, roc17, ma117, ma217, ma317, ma417, BLtrig17, SLtrig17, sup17] = request.security(s17, timeframe.period, screener_func())
-[cl18, rsi18, tsi18, roc18, ma118, ma218, ma318, ma418, BLtrig18, SLtrig18, sup18] = request.security(s18, timeframe.period, screener_func())
-[cl19, rsi19, tsi19, roc19, ma119, ma219, ma319, ma419, BLtrig19, SLtrig19, sup19] = request.security(s19, timeframe.period, screener_func())
-[cl20, rsi20, tsi20, roc20, ma120, ma220, ma320, ma420, BLtrig20, SLtrig20, sup20] = request.security(s20, timeframe.period, screener_func())
-[cl21, rsi21, tsi21, roc21, ma121, ma221, ma321, ma421, BLtrig21, SLtrig21, sup21] = request.security(s21, timeframe.period, screener_func())
-[cl22, rsi22, tsi22, roc22, ma122, ma222, ma322, ma422, BLtrig22, SLtrig22, sup22] = request.security(s22, timeframe.period, screener_func())
-[cl23, rsi23, tsi23, roc23, ma123, ma223, ma323, ma423, BLtrig23, SLtrig23, sup23] = request.security(s23, timeframe.period, screener_func())
-[cl24, rsi24, tsi24, roc24, ma124, ma224, ma324, ma424, BLtrig24, SLtrig24, sup24] = request.security(s24, timeframe.period, screener_func())
-[cl25, rsi25, tsi25, roc25, ma125, ma225, ma325, ma425, BLtrig25, SLtrig25, sup25] = request.security(s25, timeframe.period, screener_func())
-[cl26, rsi26, tsi26, roc26, ma126, ma226, ma326, ma426, BLtrig26, SLtrig26, sup26] = request.security(s26, timeframe.period, screener_func())
-[cl27, rsi27, tsi27, roc27, ma127, ma227, ma327, ma427, BLtrig27, SLtrig27, sup27] = request.security(s27, timeframe.period, screener_func())
-[cl28, rsi28, tsi28, roc28, ma128, ma228, ma328, ma428, BLtrig28, SLtrig28, sup28] = request.security(s28, timeframe.period, screener_func())
-[cl29, rsi29, tsi29, roc29, ma129, ma229, ma329, ma429, BLtrig29, SLtrig29, sup29] = request.security(s29, timeframe.period, screener_func())
-[cl30, rsi30, tsi30, roc30, ma130, ma230, ma330, ma430, BLtrig30, SLtrig30, sup30] = request.security(s30, timeframe.period, screener_func())
-[cl31, rsi31, tsi31, roc31, ma131, ma231, ma331, ma431, BLtrig31, SLtrig31, sup31] = request.security(s31, timeframe.period, screener_func())
-[cl32, rsi32, tsi32, roc32, ma132, ma232, ma332, ma432, BLtrig32, SLtrig32, sup32] = request.security(s32, timeframe.period, screener_func())
-[cl33, rsi33, tsi33, roc33, ma133, ma233, ma333, ma433, BLtrig33, SLtrig33, sup33] = request.security(s33, timeframe.period, screener_func())
-[cl34, rsi34, tsi34, roc34, ma134, ma234, ma334, ma434, BLtrig34, SLtrig34, sup34] = request.security(s34, timeframe.period, screener_func())
-[cl35, rsi35, tsi35, roc35, ma135, ma235, ma335, ma435, BLtrig35, SLtrig35, sup35] = request.security(s35, timeframe.period, screener_func())
-[cl36, rsi36, tsi36, roc36, ma136, ma236, ma336, ma436, BLtrig36, SLtrig36, sup36] = request.security(s36, timeframe.period, screener_func())
-[cl37, rsi37, tsi37, roc37, ma137, ma237, ma337, ma437, BLtrig37, SLtrig37, sup37] = request.security(s37, timeframe.period, screener_func())
-[cl38, rsi38, tsi38, roc38, ma138, ma238, ma338, ma438, BLtrig38, SLtrig38, sup38] = request.security(s38, timeframe.period, screener_func())
-[cl39, rsi39, tsi39, roc39, ma139, ma239, ma339, ma439, BLtrig39, SLtrig39, sup39] = request.security(s39, timeframe.period, screener_func())
-[cl40, rsi40, tsi40, roc40, ma140, ma240, ma340, ma440, BLtrig40, SLtrig40, sup40] = request.security(s40, timeframe.period, screener_func())
-
+[cl01, rsi01, roc01, ma101, ma201, ma301, ma401, BLtrig01, SLtrig01, signal01, sup01] = request.security(s01, timeframe.period, screener_func())
+[cl02, rsi02, roc02, ma102, ma202, ma302, ma402, BLtrig02, SLtrig02, signal02, sup02] = request.security(s02, timeframe.period, screener_func())
+[cl03, rsi03, roc03, ma103, ma203, ma303, ma403, BLtrig03, SLtrig03, signal03, sup03] = request.security(s03, timeframe.period, screener_func())
+[cl04, rsi04, roc04, ma104, ma204, ma304, ma404, BLtrig04, SLtrig04, signal04, sup04] = request.security(s04, timeframe.period, screener_func())
+[cl05, rsi05, roc05, ma105, ma205, ma305, ma405, BLtrig05, SLtrig05, signal05, sup05] = request.security(s05, timeframe.period, screener_func())
+[cl06, rsi06, roc06, ma106, ma206, ma306, ma406, BLtrig06, SLtrig06, signal06, sup06] = request.security(s06, timeframe.period, screener_func())
+[cl07, rsi07, roc07, ma107, ma207, ma307, ma407, BLtrig07, SLtrig07, signal07, sup07] = request.security(s07, timeframe.period, screener_func())
+[cl08, rsi08, roc08, ma108, ma208, ma308, ma408, BLtrig08, SLtrig08, signal08, sup08] = request.security(s08, timeframe.period, screener_func())
+[cl09, rsi09, roc09, ma109, ma209, ma309, ma409, BLtrig09, SLtrig09, signal09, sup09] = request.security(s09, timeframe.period, screener_func())
+[cl10, rsi10, roc10, ma110, ma210, ma310, ma410, BLtrig10, SLtrig10, signal10, sup10] = request.security(s10, timeframe.period, screener_func())
+[cl11, rsi11, roc11, ma111, ma211, ma311, ma411, BLtrig11, SLtrig11, signal11, sup11] = request.security(s11, timeframe.period, screener_func())
+[cl12, rsi12, roc12, ma112, ma212, ma312, ma412, BLtrig12, SLtrig12, signal12, sup12] = request.security(s12, timeframe.period, screener_func())
+[cl13, rsi13, roc13, ma113, ma213, ma313, ma413, BLtrig13, SLtrig13, signal13, sup13] = request.security(s13, timeframe.period, screener_func())
+[cl14, rsi14, roc14, ma114, ma214, ma314, ma414, BLtrig14, SLtrig14, signal14, sup14] = request.security(s14, timeframe.period, screener_func())
+[cl15, rsi15, roc15, ma115, ma215, ma315, ma415, BLtrig15, SLtrig15, signal15, sup15] = request.security(s15, timeframe.period, screener_func())
+[cl16, rsi16, roc16, ma116, ma216, ma316, ma416, BLtrig16, SLtrig16, signal16, sup16] = request.security(s16, timeframe.period, screener_func())
+[cl17, rsi17, roc17, ma117, ma217, ma317, ma417, BLtrig17, SLtrig17, signal17, sup17] = request.security(s17, timeframe.period, screener_func())
+[cl18, rsi18, roc18, ma118, ma218, ma318, ma418, BLtrig18, SLtrig18, signal18, sup18] = request.security(s18, timeframe.period, screener_func())
+[cl19, rsi19, roc19, ma119, ma219, ma319, ma419, BLtrig19, SLtrig19, signal19, sup19] = request.security(s19, timeframe.period, screener_func())
+[cl20, rsi20, roc20, ma120, ma220, ma320, ma420, BLtrig20, SLtrig20, signal20, sup20] = request.security(s20, timeframe.period, screener_func())
+[cl21, rsi21, roc21, ma121, ma221, ma321, ma421, BLtrig21, SLtrig21, signal21, sup21] = request.security(s21, timeframe.period, screener_func())
+[cl22, rsi22, roc22, ma122, ma222, ma322, ma422, BLtrig22, SLtrig22, signal22, sup22] = request.security(s22, timeframe.period, screener_func())
+[cl23, rsi23, roc23, ma123, ma223, ma323, ma423, BLtrig23, SLtrig23, signal23, sup23] = request.security(s23, timeframe.period, screener_func())
+[cl24, rsi24, roc24, ma124, ma224, ma324, ma424, BLtrig24, SLtrig24, signal24, sup24] = request.security(s24, timeframe.period, screener_func())
+[cl25, rsi25, roc25, ma125, ma225, ma325, ma425, BLtrig25, SLtrig25, signal25, sup25] = request.security(s25, timeframe.period, screener_func())
+[cl26, rsi26, roc26, ma126, ma226, ma326, ma426, BLtrig26, SLtrig26, signal26, sup26] = request.security(s26, timeframe.period, screener_func())
+[cl27, rsi27, roc27, ma127, ma227, ma327, ma427, BLtrig27, SLtrig27, signal27, sup27] = request.security(s27, timeframe.period, screener_func())
+[cl28, rsi28, roc28, ma128, ma228, ma328, ma428, BLtrig28, SLtrig28, signal28, sup28] = request.security(s28, timeframe.period, screener_func())
+[cl29, rsi29, roc29, ma129, ma229, ma329, ma429, BLtrig29, SLtrig29, signal29, sup29] = request.security(s29, timeframe.period, screener_func())
+[cl30, rsi30, roc30, ma130, ma230, ma330, ma430, BLtrig30, SLtrig30, signal30, sup30] = request.security(s30, timeframe.period, screener_func())
+[cl31, rsi31, roc31, ma131, ma231, ma331, ma431, BLtrig31, SLtrig31, signal31, sup31] = request.security(s31, timeframe.period, screener_func())
+[cl32, rsi32, roc32, ma132, ma232, ma332, ma432, BLtrig32, SLtrig32, signal32, sup32] = request.security(s32, timeframe.period, screener_func())
+[cl33, rsi33, roc33, ma133, ma233, ma333, ma433, BLtrig33, SLtrig33, signal33, sup33] = request.security(s33, timeframe.period, screener_func())
+[cl34, rsi34, roc34, ma134, ma234, ma334, ma434, BLtrig34, SLtrig34, signal34, sup34] = request.security(s34, timeframe.period, screener_func())
+[cl35, rsi35, roc35, ma135, ma235, ma335, ma435, BLtrig35, SLtrig35, signal35, sup35] = request.security(s35, timeframe.period, screener_func())
+[cl36, rsi36, roc36, ma136, ma236, ma336, ma436, BLtrig36, SLtrig36, signal36, sup36] = request.security(s36, timeframe.period, screener_func())
+[cl37, rsi37, roc37, ma137, ma237, ma337, ma437, BLtrig37, SLtrig37, signal37, sup37] = request.security(s37, timeframe.period, screener_func())
+[cl38, rsi38, roc38, ma138, ma238, ma338, ma438, BLtrig38, SLtrig38, signal38, sup38] = request.security(s38, timeframe.period, screener_func())
+[cl39, rsi39, roc39, ma139, ma239, ma339, ma439, BLtrig39, SLtrig39, signal39, sup39] = request.security(s39, timeframe.period, screener_func())
+[cl40, rsi40, roc40, ma140, ma240, ma340, ma440, BLtrig40, SLtrig40, signal40, sup40] = request.security(s40, timeframe.period, screener_func())
 ////////////
 // ARRAYS //
 
@@ -256,7 +292,7 @@ s_arr   = array.new_string(0)
 u_arr   = array.new_bool(0)
 cl_arr  = array.new_float(0)
 rsi_arr = array.new_float(0)
-tsi_arr = array.new_float(0)
+signal_arr = array.new_bool(0)
 adx_arr = array.new_float(0)
 sup_arr = array.new_float(0)
 BLtrig_arr = array.new_bool(0)
@@ -486,92 +522,49 @@ array.push(roc_arr, roc39)
 array.push(roc_arr, roc40)
 
 /////////
-// TSI //
+// SIGNAL //
 
-array.push(tsi_arr, tsi01)
-array.push(tsi_arr, tsi02)
-array.push(tsi_arr, tsi03)
-array.push(tsi_arr, tsi04)
-array.push(tsi_arr, tsi05)
-array.push(tsi_arr, tsi06)
-array.push(tsi_arr, tsi07)
-array.push(tsi_arr, tsi08)
-array.push(tsi_arr, tsi09)
-array.push(tsi_arr, tsi10)
-array.push(tsi_arr, tsi11)
-array.push(tsi_arr, tsi12)
-array.push(tsi_arr, tsi13)
-array.push(tsi_arr, tsi14)
-array.push(tsi_arr, tsi15)
-array.push(tsi_arr, tsi16)
-array.push(tsi_arr, tsi17)
-array.push(tsi_arr, tsi18)
-array.push(tsi_arr, tsi19)
-array.push(tsi_arr, tsi20)
-array.push(tsi_arr, tsi21)
-array.push(tsi_arr, tsi22)
-array.push(tsi_arr, tsi23)
-array.push(tsi_arr, tsi24)
-array.push(tsi_arr, tsi25)
-array.push(tsi_arr, tsi26)
-array.push(tsi_arr, tsi27)
-array.push(tsi_arr, tsi28)
-array.push(tsi_arr, tsi29)
-array.push(tsi_arr, tsi30)
-array.push(tsi_arr, tsi31)
-array.push(tsi_arr, tsi32)
-array.push(tsi_arr, tsi33)
-array.push(tsi_arr, tsi34)
-array.push(tsi_arr, tsi35)
-array.push(tsi_arr, tsi36)
-array.push(tsi_arr, tsi37)
-array.push(tsi_arr, tsi38)
-array.push(tsi_arr, tsi39)
-array.push(tsi_arr, tsi40)
+array.push(signal_arr, signal01)
+array.push(signal_arr, signal02)
+array.push(signal_arr, signal03)
+array.push(signal_arr, signal04)
+array.push(signal_arr, signal05)
+array.push(signal_arr, signal06)
+array.push(signal_arr, signal07)
+array.push(signal_arr, signal08)
+array.push(signal_arr, signal09)
+array.push(signal_arr, signal10)
+array.push(signal_arr, signal11)
+array.push(signal_arr, signal12)
+array.push(signal_arr, signal13)
+array.push(signal_arr, signal14)
+array.push(signal_arr, signal15)
+array.push(signal_arr, signal16)
+array.push(signal_arr, signal17)
+array.push(signal_arr, signal18)
+array.push(signal_arr, signal19)
+array.push(signal_arr, signal20)
+array.push(signal_arr, signal21)
+array.push(signal_arr, signal22)
+array.push(signal_arr, signal23)
+array.push(signal_arr, signal24)
+array.push(signal_arr, signal25)
+array.push(signal_arr, signal26)
+array.push(signal_arr, signal27)
+array.push(signal_arr, signal28)
+array.push(signal_arr, signal29)
+array.push(signal_arr, signal30)
+array.push(signal_arr, signal31)
+array.push(signal_arr, signal32)
+array.push(signal_arr, signal33)
+array.push(signal_arr, signal34)
+array.push(signal_arr, signal35)
+array.push(signal_arr, signal36)
+array.push(signal_arr, signal37)
+array.push(signal_arr, signal38)
+array.push(signal_arr, signal39)
+array.push(signal_arr, signal40)
 
-/////////
-// ADX //
-
-//array.push(adx_arr, adx01)
-//array.push(adx_arr, adx02)
-//array.push(adx_arr, adx03)
-//array.push(adx_arr, adx04)
-//array.push(adx_arr, adx05)
-//array.push(adx_arr, adx06)
-//array.push(adx_arr, adx07)
-//array.push(adx_arr, adx08)
-//array.push(adx_arr, adx09)
-//array.push(adx_arr, adx10)
-//array.push(adx_arr, adx11)
-//array.push(adx_arr, adx12)
-//array.push(adx_arr, adx13)
-//array.push(adx_arr, adx14)
-//array.push(adx_arr, adx15)
-//array.push(adx_arr, adx16)
-//array.push(adx_arr, adx17)
-//array.push(adx_arr, adx18)
-//array.push(adx_arr, adx19)
-//array.push(adx_arr, adx20)
-//array.push(adx_arr, adx21)
-//array.push(adx_arr, adx22)
-//array.push(adx_arr, adx23)
-//array.push(adx_arr, adx24)
-//array.push(adx_arr, adx25)
-//array.push(adx_arr, adx26)
-//array.push(adx_arr, adx27)
-//array.push(adx_arr, adx28)
-//array.push(adx_arr, adx29)
-//array.push(adx_arr, adx30)
-//array.push(adx_arr, adx31)
-//array.push(adx_arr, adx32)
-//array.push(adx_arr, adx33)
-//array.push(adx_arr, adx34)
-//array.push(adx_arr, adx35)
-//array.push(adx_arr, adx36)
-//array.push(adx_arr, adx37)
-//array.push(adx_arr, adx38)
-//array.push(adx_arr, adx39)
-//array.push(adx_arr, adx40)
 
 ////////////////
 // SUPERTREND //
@@ -890,14 +883,14 @@ if barstate.islast
     table.cell(tbl, 0, 0, 'ITVL: '+str.tostring(timeframe.period),     text_halign = text.align_center, bgcolor = color.gray, text_color = color.white, text_size = size.small)
     table.cell(tbl, 1, 0, 'Price',      text_halign = text.align_center, bgcolor = color.gray, text_color = color.white, text_size = size.small)
     table.cell(tbl, 2, 0, 'RSI',        text_halign = text.align_center, bgcolor = color.gray, text_color = color.white, text_size = size.small)
-    table.cell(tbl, 3, 0, 'TSI',        text_halign = text.align_center, bgcolor = color.gray, text_color = color.white, text_size = size.small)
-    table.cell(tbl, 4, 0, 'ROC',        text_halign = text.align_center, bgcolor = color.gray, text_color = color.white, text_size = size.small)
-    table.cell(tbl, 5, 0, 'EMA1',        text_halign = text.align_center, bgcolor = color.gray, text_color = color.white, text_size = size.small)
-    table.cell(tbl, 6, 0, 'EMA2',        text_halign = text.align_center, bgcolor = color.gray, text_color = color.white, text_size = size.small)
-    table.cell(tbl, 7, 0, 'EMA3',        text_halign = text.align_center, bgcolor = color.gray, text_color = color.white, text_size = size.small)
-    table.cell(tbl, 8, 0, 'EMA4',        text_halign = text.align_center, bgcolor = color.gray, text_color = color.white, text_size = size.small)
-    table.cell(tbl, 9, 0, 'BLong', text_halign = text.align_center, bgcolor = color.gray, text_color = color.white, text_size = size.small)
-    table.cell(tbl, 10, 0, 'SLong', text_halign = text.align_center, bgcolor = color.gray, text_color = color.white, text_size = size.small)
+    table.cell(tbl, 3, 0, 'ROC',        text_halign = text.align_center, bgcolor = color.gray, text_color = color.white, text_size = size.small)
+    table.cell(tbl, 4, 0, 'EMA1',        text_halign = text.align_center, bgcolor = color.gray, text_color = color.white, text_size = size.small)
+    table.cell(tbl, 5, 0, 'EMA2',        text_halign = text.align_center, bgcolor = color.gray, text_color = color.white, text_size = size.small)
+    table.cell(tbl, 6, 0, 'EMA3',        text_halign = text.align_center, bgcolor = color.gray, text_color = color.white, text_size = size.small)
+    table.cell(tbl, 7, 0, 'EMA4',        text_halign = text.align_center, bgcolor = color.gray, text_color = color.white, text_size = size.small)
+    table.cell(tbl, 8, 0, 'BLong', text_halign = text.align_center, bgcolor = color.gray, text_color = color.white, text_size = size.small)
+    table.cell(tbl, 9, 0, 'SLong', text_halign = text.align_center, bgcolor = color.gray, text_color = color.white, text_size = size.small)
+    table.cell(tbl, 10, 0, 'SIGNAL',        text_halign = text.align_center, bgcolor = color.gray, text_color = color.white, text_size = size.small)
     table.cell(tbl, 11, 0, 'Supertrend', text_halign = text.align_center, bgcolor = color.gray, text_color = color.white, text_size = size.small)
 
 
@@ -906,12 +899,15 @@ if barstate.islast
         if array.get(u_arr, i)
         
             rsi_col  = array.get(rsi_arr, i) > rsi_ob    ? color.red   : array.get(rsi_arr, i) < rsi_os ? color.green : #aaaaaa 
-            tsi_col  = array.get(tsi_arr, i) > tsi_ob    ? color.red   : array.get(tsi_arr, i) < tsi_os ? color.green : #aaaaaa  
+            //tsi_col  = array.get(tsi_arr, i) > tsi_ob    ? color.red   : array.get(tsi_arr, i) < tsi_os ? color.green : #aaaaaa  
             //adx_col  = array.get(adx_arr, i) > adx_level ? color.green : #aaaaaa 
-        
+
             sup_text = array.get(sup_arr, i) > 0 ? "Down"      : "Up"
             sup_col  = array.get(sup_arr, i) < 0 ? color.green : color.red
-            
+ 
+            signal_text = array.get(signal_arr, i) == bool(true) ? "Buy"      : "Sell"
+            signal_col = array.get(signal_arr, i) == bool(true) ? color.green : color.red
+
             BLtrig_text = array.get(BLtrig_arr, i) == bool(true) ? "Blong"      : "Wait"
 			BLtrig_col  = array.get(BLtrig_arr, i) == bool(true) ? color.green : #aaaaaa
 			BLtrig_bool = array.get(BLtrig_arr, i) == bool(true)
@@ -930,15 +926,14 @@ if barstate.islast
             table.cell(tbl, 0, i + 1, array.get(s_arr, i),                                 	text_halign = text.align_left,   bgcolor = color.gray, text_color = color.white, text_size = size.small)
             table.cell(tbl, 1, i + 1, str.tostring(array.get(cl_arr, i)),                  	text_halign = text.align_center, bgcolor = #aaaaaa,    text_color = color.white, text_size = size.small)
             table.cell(tbl, 2, i + 1, str.tostring(array.get(rsi_arr, i), "#.##"),         	text_halign = text.align_center, bgcolor = rsi_col,    text_color = color.white, text_size = size.small)
-            table.cell(tbl, 3, i + 1, str.tostring(array.get(tsi_arr, i), "#.##"),         	text_halign = text.align_center, bgcolor = tsi_col,    text_color = color.white, text_size = size.small)
-            //table.cell(tbl, 4, i + 1, str.tostring(array.get(adx_arr, i), "#.##"),         	text_halign = text.align_center, bgcolor = adx_col   , text_color = color.white, text_size = size.small)
-            table.cell(tbl, 4, i + 1, str.tostring(array.get(roc_arr, i), "#.##"),         	text_halign = text.align_center, bgcolor = roc_col   , text_color = #242424, text_size = size.small)
-            table.cell(tbl, 5, i + 1, str.tostring(array.get(ma1_arr, i), "#.##"),         	text_halign = text.align_center, bgcolor = ma1_col   , text_color = #242424, text_size = size.small)
-            table.cell(tbl, 6, i + 1, str.tostring(array.get(ma2_arr, i), "#.##"),         	text_halign = text.align_center, bgcolor = ma2_col   , text_color = #242424, text_size = size.small)
-            table.cell(tbl, 7, i + 1, str.tostring(array.get(ma3_arr, i), "#.##"),         	text_halign = text.align_center, bgcolor = ma3_col   , text_color = #242424, text_size = size.small)
-            table.cell(tbl, 8, i + 1, str.tostring(array.get(ma4_arr, i), "#.##"),         	text_halign = text.align_center, bgcolor = ma4_col   , text_color = #242424, text_size = size.small)
-			table.cell(tbl, 9, i + 1, BLtrig_text,                						   	text_halign = text.align_center, bgcolor = BLtrig_col,    text_color = color.white, text_size = size.small)
-			table.cell(tbl, 10, i + 1, SLtrig_text,                							text_halign = text.align_center, bgcolor = SLtrig_col,    text_color = color.white, text_size = size.small)
+            table.cell(tbl, 3, i + 1, str.tostring(array.get(roc_arr, i), "#.##"),         	text_halign = text.align_center, bgcolor = roc_col   , text_color = #242424, text_size = size.small)
+            table.cell(tbl, 4, i + 1, str.tostring(array.get(ma1_arr, i), "#.##"),         	text_halign = text.align_center, bgcolor = ma1_col   , text_color = #242424, text_size = size.small)
+            table.cell(tbl, 5, i + 1, str.tostring(array.get(ma2_arr, i), "#.##"),         	text_halign = text.align_center, bgcolor = ma2_col   , text_color = #242424, text_size = size.small)
+            table.cell(tbl, 6, i + 1, str.tostring(array.get(ma3_arr, i), "#.##"),         	text_halign = text.align_center, bgcolor = ma3_col   , text_color = #242424, text_size = size.small)
+            table.cell(tbl, 7, i + 1, str.tostring(array.get(ma4_arr, i), "#.##"),         	text_halign = text.align_center, bgcolor = ma4_col   , text_color = #242424, text_size = size.small)
+			table.cell(tbl, 8, i + 1, BLtrig_text,                						   	text_halign = text.align_center, bgcolor = BLtrig_col,    text_color = color.white, text_size = size.small)
+			table.cell(tbl, 9, i + 1, SLtrig_text,                							text_halign = text.align_center, bgcolor = SLtrig_col,    text_color = color.white, text_size = size.small)
+            table.cell(tbl, 10, i + 1, signal_text,         	text_halign = text.align_center, bgcolor = signal_col,    text_color = color.black, text_size = size.small)
             table.cell(tbl, 11, i + 1, sup_text,                                            text_halign = text.align_center, bgcolor = sup_col,    text_color = color.white, text_size = size.small)
 
 			//ALARM 
