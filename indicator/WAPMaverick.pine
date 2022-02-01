@@ -1,0 +1,224 @@
+// This source code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/
+// © mutantdog
+
+//@version=5
+indicator(title='WAP Maverick', shorttitle='WAP Maverick', overlay=true)
+
+
+// ------
+// INPUTS
+// ------
+
+
+source_data =   input.string    (title='Source',            group='WAP',        defval='hlc3',  options=['open', 'high', 'low', 'close', 'hl2', 'hlc3', 'ohlc4', 'hlcc4', 'oc2'])
+w_anchor =      input.string    (title='(w)Anchor',         group='WAP',        defval='Week',  options=['Day', 'Week', 'Month', 'Quarter', 'Year', 'Intraday'])
+w_minutes =     input.int       (title='(w)Intraday',       group='WAP',        defval=240,     step=60,    minval=0,   maxval=1440,                tooltip='Session size in minutes when Anchor is set to Intraday only. Setting 0 value will use current timeframe.')
+length =        input.int       (title='(m)Length',         group='WAP',        defval=21,                  minval=1,                               tooltip='EMA length used for smoothing, is independant from anchor. WAP is calculated as ema(numerator,length) / ema(denominator,length).')
+deviate =       input.float     (title='Deviate',           group='WAP',        defval=0,       step=0.05,                                          tooltip='Shifts WAP (and bands) up / down by multiple of Standard Deviation.')
+useema =        input.bool      (title='EMA Smoothing',     group='WAP',        defval=true)
+
+
+bandmult_a =    input.float     (title='Bands A: Mult',     group='Bands',      defval=1,       step=0.1,   minval=0,               inline='11')
+show_hib_a =    input.bool      (title='Hi',                group='Bands',      defval=false,                                       inline='11')
+show_lob_a =    input.bool      (title='Lo',                group='Bands',      defval=false,                                       inline='11',    tooltip='Only active bands will be used for alerts. Hi bands based on Arithmetic WAP, Lo bands based on Harmonic WAP.')
+
+bandmult_b =    input.float     (title='Bands B: Mult',     group='Bands',      defval=2,       step=0.1,   minval=0,               inline='12')
+show_hib_b =    input.bool      (title='Hi',                group='Bands',      defval=false,                                       inline='12')
+show_lob_b =    input.bool      (title='Lo',                group='Bands',      defval=false,                                       inline='12')
+
+
+source_side =   input.source    (title='Side Source',       group='Crosses',    defval=close,                                                       tooltip='Input used for buy/sell alerts on selected crosses, can be either price or other indicator.')
+show_wx_up =    input.bool      (title='Up',                group='Crosses',    defval=false,                                       inline='33')
+show_wx_dn =    input.bool      (title='Down - WAP',        group='Crosses',    defval=false,                                       inline='33',    tooltip='Up crosses against Arithmetic WAP, down crosses against Harmonic WAP.')
+show_bax_up =   input.bool      (title='Up',                group='Crosses',    defval=false,                                       inline='34')
+show_bax_dn =   input.bool      (title='Down - Bands: A',   group='Crosses',    defval=false,                                       inline='34',    tooltip='Applied to active bands only.')
+show_bbx_up =   input.bool      (title='Up',                group='Crosses',    defval=false,                                       inline='35')
+show_bbx_dn =   input.bool      (title='Down - Bands: B',   group='Crosses',    defval=false,                                       inline='35',    tooltip='Applied to active bands only.')
+show_alerts =   input.bool      (title='Show Alerts',       group='Crosses',    defval=true,                                        inline='37',    tooltip='Visual only, does not affect main alerts.')
+inv_alerts =    input.bool      (title='Invert Conditions', group='Crosses',    defval=false,                                       inline='38',    tooltip='Returns opposite buy/sell alerts for cross types, use for alternative routings.')
+
+
+col_bull =      input.color     (title='',                  group='Visual',     defval=#87CEEB,                                     inline='42')
+col_bear =      input.color     (title='',                  group='Visual',     defval=#B8860B,                                     inline='42')
+col_band =      input.color     (title='',                  group='Visual',     defval=#006666,                                     inline='42')
+col_neutral =   input.color     (title='',                  group='Visual',     defval=#808080,                                     inline='42')
+use_side =      input.bool      (title='Use Side',          group='Visual',     defval=false,                                       inline='42',    tooltip='Use Side to colour bullish/bearish according to Side Source, otherwise uses price.')
+
+opac_wap =      input.int       (title='Opacity: WAP',      group='Visual',     defval=75,      step=5,     minval=0,   maxval=100, inline='47')
+opac_band =     input.int       (title='Bands',             group='Visual',     defval=50,      step=5,     minval=0,   maxval=100, inline='47')
+fill_wap =      input.int       (title='Fill: WAP    ',     group='Visual',     defval=35,      step=5,     minval=0,   maxval=100, inline='48')
+fill_band =     input.int       (title='Bands',             group='Visual',     defval=15,      step=5,     minval=0,   maxval=100, inline='48')
+
+
+
+// ---------
+// FUNCTIONS
+// ---------
+
+wm_source (src) => 
+    source = switch src
+        'open'  => open
+        'high'  => high
+        'low'   => low
+        'close' => close
+        'hl2'   => hl2
+        'hlc3'  => hlc3
+        'ohlc4' => ohlc4
+        'hlcc4' => hlcc4
+        'oc2'   => (open + close) / 2
+
+
+wm_wanchor (src, prd, mins) =>
+    int sessionsize =   na
+    
+    sessionsize :=      mins != 0   ? mins  : timeframe.multiplier
+    makesession =       timeframe.isminutes ? str.tostring(sessionsize) : timeframe.period
+    
+    timechange = switch prd
+        'Day' =>        ta.change (time('D'))
+        'Week' =>       ta.change (time('W'))
+        'Month' =>      ta.change (time('M'))
+        'Quarter' =>    ta.change (time('3M'))
+        'Year' =>       ta.change (time('12M'))
+        'Intraday' =>   ta.change (time(makesession))
+        
+    na(src[1]) ? true : timechange    
+
+
+wm_wap (src, len, anch) =>
+    var float       sumsrcvol = na
+    var float       sumvol = na
+    var float       sumsrcsrcvol = na
+    var float       sumvolsrc = na
+
+    sumsrcvol :=    anch    ? src * volume              : src * volume + sumsrcvol[1]
+    sumvol :=       anch    ? volume                    : volume + sumvol[1]
+    sumsrcsrcvol := anch    ? volume * math.pow(src, 2) : volume * math.pow(src, 2) + sumsrcsrcvol[1]
+    sumvolsrc :=    anch    ? volume / src              : volume / src + sumvolsrc[1] 
+    
+    var float       wap_a = na
+    var float       wap_h = na
+    var float       vari_a = na
+    var float       dev_a = na
+
+    wap_a :=        ta.ema (sumsrcvol, len)     /   ta.ema (sumvol, len)
+    wap_h :=        ta.ema (sumvol, len)        /   ta.ema (sumvolsrc, len)
+    vari_a :=       (ta.ema (sumsrcsrcvol, len) /   ta.ema (sumvol, len))       - math.pow(wap_a,2)
+    dev_a :=        math.sqrt (vari_a)
+
+    [wap_a, wap_h, dev_a]
+
+
+wm_bandify (src, dev, mult1, mult2) =>
+    hi1 = src + dev * mult1
+    lo1 = src - dev * mult1
+    hi2 = src + dev * mult2
+    lo2 = src - dev * mult2
+    
+    [hi1, lo1, hi2, lo2]
+
+
+source =                                wm_source (source_data)
+wanchor =                               wm_wanchor (source, w_anchor, w_minutes)
+emalength =                             useema ? length : 1
+
+[wapx_a, wapx_h, dev] =                 wm_wap (source, emalength, wanchor)
+wap_ari =                               wapx_a + deviate * dev
+wap_har =                               wapx_h + deviate * dev
+
+[hiband_a, xlo_a, hiband_b, xlo_b] =    wm_bandify (wap_ari, dev, bandmult_a, bandmult_b)
+[xhi_a, loband_a, xhi_b, loband_b] =    wm_bandify (wap_har, dev, bandmult_a, bandmult_b)
+
+midwap =                                (wap_ari + wap_har) / 2
+
+
+// ----------------
+// VISUALS & ALERTS
+// ----------------
+
+// - Colours
+
+bullcolour =        color.new (col_bull,    100 - opac_wap)
+bearcolour =        color.new (col_bear,    100 - opac_wap)
+neutcolour =        color.new (col_neutral, 100 - opac_wap)
+bandcolour =        color.new (col_band,    100 - opac_band)
+
+bullfill =          color.new (col_bull,    100 - fill_wap)
+bearfill =          color.new (col_bear,    100 - fill_wap)
+neutfill =          color.new (col_neutral, 100 - fill_wap)
+bandfill =          color.new (col_band,    100 - fill_band/2)
+
+nocolour =          color.new (col_neutral, 100)
+
+wapcolour_p =       low > wap_ari           ? bullcolour    : high < wap_har            ? bearcolour    : neutcolour
+wapcolour_s =       source_side > wap_ari   ? bullcolour    : source_side < wap_har     ? bearcolour    : neutcolour
+wapcolour_si =      source_side < wap_ari   ? bullcolour    : source_side > wap_har     ? bearcolour    : neutcolour
+wapfill_p =         low > wap_ari           ? bullfill      : high < wap_har            ? bearfill      : neutfill
+wapfill_s =         source_side > wap_ari   ? bullfill      : source_side < wap_har     ? bearfill      : neutfill
+wapfill_si =        source_side < wap_ari   ? bullfill      : source_side > wap_har     ? bearfill      : neutfill
+
+wapcolour =         use_side                ? inv_alerts    ? wapcolour_si      : wapcolour_s   :wapcolour_p
+wapfill =           use_side                ? inv_alerts    ? wapfill_si        : wapfill_s     : wapfill_p
+
+
+// - WAP plot and fill
+
+plot_wap_ari =      plot (wap_ari,                      title='WAP: Arithmetic',    color=wapcolour,        linewidth=2)
+plot_wap_har =      plot (wap_har,                      title='WAP: Harmonic',      color=wapcolour,        linewidth=2)
+plot_midwap =       plot (midwap,                       title='WAP: Mid (hidden)',  color=nocolour)
+
+plot_hib_a =        plot (show_hib_a ? hiband_a : na,   title='Band A: Hi',         color=bandcolour,       linewidth=2)
+plot_lob_a =        plot (show_lob_a ? loband_a : na,   title='Band A: Lo',         color=bandcolour,       linewidth=2)
+plot_hib_b =        plot (show_hib_b ? hiband_b : na,   title='Band B: Hi',         color=bandcolour,       linewidth=2)
+plot_lob_b =        plot (show_lob_b ? loband_b : na,   title='Band B: Lo',         color=bandcolour,       linewidth=2)
+
+fill (plot_wap_ari,  plot_wap_har,                      title='Fill WAP',           color=wapfill)
+fill (plot_wap_ari,  plot_hib_a,                        title='Fill Band A: Hi',    color=bandfill)
+fill (plot_wap_har,  plot_lob_a,                        title='Fill Band A: Lo',    color=bandfill)
+fill (plot_wap_ari,  plot_hib_b,                        title='Fill Band B: Hi',    color=bandfill)
+fill (plot_wap_har,  plot_lob_b,                        title='Fill Band B: Lo',    color=bandfill)
+
+
+// - Alerts
+
+wx_up =     inv_alerts ?    ta.crossunder   (source_side, wap_har)  and show_wx_dn                  :   ta.crossover    (source_side, wap_ari)  and show_wx_up
+wx_dn =     inv_alerts ?    ta.crossover    (source_side, wap_ari)  and show_wx_up                  :   ta.crossunder   (source_side, wap_har)  and show_wx_dn                  
+
+bx_up_alo = inv_alerts ?    ta.crossunder   (source_side, loband_a) and show_bax_dn and show_lob_a  :   ta.crossover    (source_side, loband_a) and show_bax_up and show_lob_a
+bx_up_ahi = inv_alerts ?    ta.crossunder   (source_side, hiband_a) and show_bax_dn and show_hib_a  :   ta.crossover    (source_side, hiband_a) and show_bax_up and show_hib_a
+bx_up_blo = inv_alerts ?    ta.crossunder   (source_side, loband_b) and show_bbx_dn and show_lob_b  :   ta.crossover    (source_side, loband_b) and show_bbx_up and show_lob_b
+bx_up_bhi = inv_alerts ?    ta.crossunder   (source_side, hiband_b) and show_bbx_dn and show_hib_b  :   ta.crossover    (source_side, hiband_b) and show_bbx_up and show_hib_b
+
+bx_dn_alo = inv_alerts ?    ta.crossover    (source_side, loband_a) and show_bax_up and show_lob_a  :   ta.crossunder   (source_side, loband_a) and show_bax_dn and show_lob_a
+bx_dn_ahi = inv_alerts ?    ta.crossover    (source_side, hiband_a) and show_bax_up and show_hib_a  :   ta.crossunder   (source_side, hiband_a) and show_bax_dn and show_hib_a
+bx_dn_blo = inv_alerts ?    ta.crossover    (source_side, loband_b) and show_bbx_up and show_lob_b  :   ta.crossunder   (source_side, loband_b) and show_bbx_dn and show_lob_b
+bx_dn_bhi = inv_alerts ?    ta.crossover    (source_side, hiband_b) and show_bbx_up and show_hib_b  :   ta.crossunder   (source_side, hiband_b) and show_bbx_dn and show_hib_b
+
+
+plotshape (wx_up and show_alerts        ? wap_har - ta.tr   : na,   title='Buy: WAP',       style=shape.labelup,    text='Buy',     color=neutcolour, textcolor=color.white, location=location.absolute)
+plotshape (wx_dn and show_alerts        ? wap_ari + ta.tr   : na,   title='Sell: WAP',      style=shape.labeldown,  text='Sell',    color=neutcolour, textcolor=color.white, location=location.absolute)
+
+plotshape (bx_up_alo and show_alerts    ? loband_a - ta.tr  : na,   title='Buy: Loband A',  style=shape.labelup,    text='Buy',     color=bandcolour, textcolor=color.white, location=location.absolute)
+plotshape (bx_up_ahi and show_alerts    ? hiband_a - ta.tr  : na,   title='Buy: Hiband A',  style=shape.labelup,    text='Buy',     color=bandcolour, textcolor=color.white, location=location.absolute)
+plotshape (bx_up_blo and show_alerts    ? loband_b - ta.tr  : na,   title='Buy: Loband B',  style=shape.labelup,    text='Buy',     color=bandcolour, textcolor=color.white, location=location.absolute)
+plotshape (bx_up_bhi and show_alerts    ? hiband_b - ta.tr  : na,   title='Buy: Hiband B',  style=shape.labelup,    text='Buy',     color=bandcolour, textcolor=color.white, location=location.absolute)
+
+plotshape (bx_dn_alo and show_alerts    ? loband_a + ta.tr  : na,   title='Sell: Loband A', style=shape.labeldown,  text='Sell',    color=bandcolour, textcolor=color.white, location=location.absolute)
+plotshape (bx_dn_ahi and show_alerts    ? hiband_a + ta.tr  : na,   title='Sell: Hiband A', style=shape.labeldown,  text='Sell',    color=bandcolour, textcolor=color.white, location=location.absolute)
+plotshape (bx_dn_blo and show_alerts    ? loband_b + ta.tr  : na,   title='Sell: Loband B', style=shape.labeldown,  text='Sell',    color=bandcolour, textcolor=color.white, location=location.absolute)
+plotshape (bx_dn_bhi and show_alerts    ? hiband_b + ta.tr  : na,   title='Sell: Hiband B', style=shape.labeldown,  text='Sell',    color=bandcolour, textcolor=color.white, location=location.absolute)
+
+
+alertcondition  (ta.crossover (source_side, wap_ari),                           title='00: Side Above WAP',                 message='BUY ALERT:     Sidesource Above WAP')
+alertcondition  (ta.crossunder (source_side, wap_har),                          title='00: Side Below WAP',                 message='SELL ALERT:    Sidesource Below WAP')
+
+alertcondition  (bx_up_alo or bx_up_ahi or bx_up_blo or bx_up_bhi,              title='01: Side Above [Selected Bands]',    message='BUY ALERT:     Sidesource Crossed Above Selected Band')
+alertcondition  (bx_dn_alo or bx_dn_ahi or bx_dn_blo or bx_dn_bhi,              title='01: Side Below [Selected Bands]',    message='SELL ALERT:    Sidesource Crossed Below Selected Band')
+
+alertcondition  (wx_up or bx_up_alo or bx_up_ahi or bx_up_blo or bx_up_bhi,     title='02: Side Above [All Selected]',      message='BUY ALERT:     Sidesource Crossed Above Selected Band / WAP')
+alertcondition  (wx_dn or bx_dn_alo or bx_dn_ahi or bx_dn_blo or bx_dn_bhi,     title='02: Side Below [All Selected]',      message='SELL ALERT:    Sidesource Crossed Below Selected Band / WAP')
+
+
+
+
+
