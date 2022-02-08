@@ -1,0 +1,220 @@
+//@version=5
+indicator("Linear Regression Channels", shorttitle="LinReg", overlay=true)
+
+sourceInpt0  = input.source(close, title="source", inline="i5")
+sourceIsLog  = input(false,        title="log scale", inline="i5")
+
+sourceInput = sourceIsLog ? math.log(sourceInpt0) : sourceInpt0
+
+group0 = "Range Settings"
+
+lengthInput4 = input.int(200, title="Range 4", minval = 1, maxval = 5000, inline="i4", group=group0)
+lengthInput3 = input.int(100, title="Range 3", minval = 1, maxval = 5000, inline="i3", group=group0)
+lengthInput2 = input.int( 50, title="Range 2", minval = 1, maxval = 5000, inline="i2", group=group0)
+lengthInput1 = input.int( 20, title="Range 1", minval = 1, maxval = 5000, inline="i1", group=group0)
+
+inputxshow   = array.new_bool(4)
+array.set(inputxshow, 0, input(true, title="Enable", inline="i4", group=group0))
+array.set(inputxshow, 1, input(true, title="Enable", inline="i3", group=group0))
+array.set(inputxshow, 2, input(true, title="Enable", inline="i2", group=group0))
+array.set(inputxshow, 3, input(true, title="Enable", inline="i1", group=group0))
+
+group1 = "Channel Settings"
+
+multInput4 = input.float(4.0, title="Sigma 4", inline = "s4", group = group1)
+multInput3 = input.float(3.0, title="Sigma 3", inline = "s3", group = group1)
+multInput2 = input.float(2.0, title="Sigma 2", inline = "s2", group = group1)
+multInput1 = input.float(1.0, title="Sigma 1", inline = "s1", group = group1)
+
+multInput4trsp = input.int(70, title="transp.%", inline = "s4", group = group1)
+multInput3trsp = input.int(85, title="transp.%", inline = "s3", group = group1)
+multInput2trsp = input.int(20, title="transp.%", inline = "s2", group = group1)
+multInput1trsp = input.int(60, title="transp.%", inline = "s1", group = group1)
+
+
+group2 = "Display Settings"
+
+extendLeftInput  = input.bool(true, "Extend Lines Left", group = group2)
+extendRightInput = input.bool(true, "Extend Lines Right", group = group2)
+extendStyle = switch
+    extendLeftInput and extendRightInput => extend.both
+    extendLeftInput => extend.left
+    extendRightInput => extend.right
+    => extend.none
+
+
+group3 = "Color Settings"
+
+color4 = input.color(color.new(color.blue,   85), title="color 4", inline = group3, group = group3)
+color3 = input.color(color.new(color.red,    85), title="color 3", inline = group3, group = group3)
+color2 = input.color(color.new(color.green,  85), title="color 2", inline = group3, group = group3)
+color1 = input.color(color.new(color.gray,   85), title="color 1", inline = group3, group = group3)
+
+
+var float[] ss = array.new_float(4)
+
+populate_ss(level, value) =>
+    array.set(ss, level, value)
+
+does_exist(value) =>
+    var bool e = false
+    for j = 0 to array.size(ss) - 1
+        if not na(array.get(ss,j))
+            if value > array.get(ss, j) * 0.75 and value < array.get(ss, j) * 1.25 and value > 0 and array.get(ss, j) > 0
+                e := true
+            if value < array.get(ss, j) * 0.75 and value > array.get(ss, j) * 1.25 and value < 0 and array.get(ss, j) < 0
+                e := true
+
+    e
+
+calcSlope(source, length) =>
+    max_bars_back(source, 5000)
+    if not barstate.islast or length <= 1
+        [float(na), float(na), float(na)]
+    else
+        sumX = 0.0
+        sumY = 0.0
+        sumXSqr = 0.0
+        sumXY = 0.0
+        for i = 0 to length - 1 by 1
+            val = source[i]
+            per = i + 1.0
+            sumX += per
+            sumY += val
+            sumXSqr += per * per
+            sumXY += val * per
+        slope = (length * sumXY - sumX * sumY) / (length * sumXSqr - sumX * sumX)
+        average = sumY / length
+        intercept = average - slope * sumX / length + slope
+        [slope, average, intercept]
+    
+calcDev(source, length, slope, average, intercept) =>
+    upDev = 0.0
+    dnDev = 0.0
+    stdDevAcc = 0.0
+    dsxx = 0.0
+    dsyy = 0.0
+    dsxy = 0.0
+    periods = length - 1
+    daY = intercept + slope * periods / 2
+    val = intercept
+    for j = 0 to periods by 1
+        price = high[j] - val
+        if price > upDev
+            upDev := price
+        price := val - low[j]
+        if price > dnDev
+            dnDev := price
+        price := source[j]
+        dxt = price - average
+        dyt = val - daY
+        price -= val
+        stdDevAcc += price * price
+        dsxx += dxt * dxt
+        dsyy += dyt * dyt
+        dsxy += dxt * dyt
+        val += slope
+    stdDev = math.sqrt(stdDevAcc / (periods == 0 ? 1 : periods))
+    pearsonR = dsxx == 0 or dsyy == 0 ? 0 : dsxy / math.sqrt(dsxx * dsyy)
+    [stdDev, pearsonR, upDev, dnDev]
+
+plotsetlines(lengthInput, multInput, clr, trsp, startPrice, endPrice, stdDev) =>
+    
+    upperStartPrice0 = startPrice + multInput * stdDev
+    upperEndPrice0   = endPrice   + multInput * stdDev
+
+    lowerStartPrice0 = startPrice - multInput * stdDev
+    lowerEndPrice0   = endPrice   - multInput * stdDev
+
+    float upperStartPrice = na
+    float upperEndPrice   = na
+    float lowerStartPrice = na
+    float lowerEndPrice   = na
+    
+    if sourceIsLog
+        upperStartPrice := math.exp(upperStartPrice0)
+        upperEndPrice   := math.exp(upperEndPrice0  )
+        lowerStartPrice := math.exp(lowerStartPrice0)
+        lowerEndPrice   := math.exp(lowerEndPrice0  )
+    else
+        upperStartPrice := upperStartPrice0
+        upperEndPrice   := upperEndPrice0
+        lowerStartPrice := lowerStartPrice0
+        lowerEndPrice   := lowerEndPrice0
+    
+    var line upper   = na
+    var line lower   = na
+
+    if na(upper) and not na(upperStartPrice)
+        upper := line.new(bar_index - lengthInput + 1, upperStartPrice, bar_index, upperEndPrice, width=1, extend=extendStyle, color=color.new(clr, trsp))
+    else
+        line.set_xy1(upper, bar_index - lengthInput + 1, upperStartPrice)
+        line.set_xy2(upper, bar_index, upperEndPrice)
+        na
+
+    if na(lower) and not na(lowerStartPrice)
+        lower := line.new(bar_index - lengthInput + 1, lowerStartPrice, bar_index, lowerEndPrice, width=1, extend=extendStyle, color=color.new(clr, trsp))
+    else
+        line.set_xy1(lower, bar_index - lengthInput + 1, lowerStartPrice)
+        line.set_xy2(lower, bar_index, lowerEndPrice)
+        na
+    
+plotset(lengthInput, clr, rk, level) =>
+    [s, a, i] = calcSlope(sourceInput, lengthInput)
+    startPrice0 = i + s * (lengthInput - 1)
+    endPrice0 = i
+
+    [stdDev, pearsonR, upDev, dnDev] = calcDev(sourceInput, lengthInput, s, a, i)
+
+    float startPrice = na
+    float   endPrice = na
+    
+    if sourceIsLog
+        startPrice := math.exp(startPrice0)
+        endPrice   := math.exp(  endPrice0)
+    else
+        startPrice :=          startPrice0
+        endPrice   :=            endPrice0
+    
+    if barstate.islast
+        if array.get(inputxshow, level)
+            if not does_exist(s)
+                var line baseLine = na
+                if na(baseLine) and not na(startPrice)
+                    baseLine := line.new(bar_index - lengthInput + 1, startPrice, bar_index, endPrice, width=1, extend=extendStyle, color=color.new(clr, 0))
+                else
+                    line.set_xy1(baseLine, bar_index - lengthInput + 1, startPrice)
+                    line.set_xy2(baseLine, bar_index, endPrice)
+                    na
+
+                plotsetlines(lengthInput, multInput4, clr, multInput4trsp, startPrice0, endPrice0, stdDev)
+                plotsetlines(lengthInput, multInput3, clr, multInput3trsp, startPrice0, endPrice0, stdDev)
+                plotsetlines(lengthInput, multInput2, clr, multInput2trsp, startPrice0, endPrice0, stdDev)
+                plotsetlines(lengthInput, multInput1, clr, multInput1trsp, startPrice0, endPrice0, stdDev)
+        
+            populate_ss(level,s)
+    else
+        na
+
+    var label ls = na
+    label.delete(ls[1])
+    
+    ls := label.new(bar_index + 100, sourceInpt0 * rk, 'sl=' + str.tostring(-s, "0.000") + ' r=' + str.tostring(pearsonR, "0.000"), color = color.new(color.white, 100), textcolor=color.new(clr, 0), size=size.normal, style=label.style_none)
+
+
+    var line vertical = na
+
+    if na(vertical)
+        vertical := line.new(bar_index - lengthInput + 1, low, bar_index, high, width=1, extend=extend.both, color=color.new(clr, 0))
+    else
+        line.set_xy1(vertical, bar_index - lengthInput + 1, low)
+        line.set_xy2(vertical, bar_index - lengthInput + 1, high)
+        na
+    
+    s
+
+
+plotset(lengthInput4, color4, 0.8, 0)
+plotset(lengthInput3, color3, 0.9, 1)
+plotset(lengthInput2, color2, 1.1, 2)
+plotset(lengthInput1, color1, 1.2, 3)
